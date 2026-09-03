@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIIT Infinite Loop Timer</title>
+    <!-- Tailwind CSS for sleek utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for fitness and interface iconography -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Smooth transitions for gradient backgrounds */
+        .bg-gradient-animate {
+            background-size: 200% 200%;
+            animation: gradientShift 8s ease infinite;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* Custom neon glowing effects */
+        .glow-emerald {
+            filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.45));
+        }
+        .glow-rose {
+            filter: drop-shadow(0 0 12px rgba(244, 63, 94, 0.45));
+        }
+        .glow-indigo {
+            filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.45));
+        }
+        /* Radial progress bar transition smoothing */
+        #progress-ring-circle {
+            transition: stroke-dashoffset 0.1s linear, stroke 0.4s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans overflow-x-hidden">
+
+    <!-- Top Navigation Header -->
+    <header class="w-full max-w-5xl mx-auto px-4 py-4 flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600/20 text-indigo-400 p-2.5 rounded-xl border border-indigo-500/30">
+                <i class="fa-solid fa-person-running text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">INTERVAL CYCLE</h1>
+                <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">Active Workout Coach</p>
+            </div>
+        </div>
+
+        <!-- Start/Pause Action Button (Top-Right Placement Request) -->
+        <button id="topRightCtrlBtn" class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg transition-all active:scale-95 duration-200 border bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-400/30 hover:shadow-emerald-500/10 hover:brightness-110">
+            <span id="btnIcon"><i class="fa-solid fa-play"></i></span>
+            <span id="btnText">START</span>
+        </button>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-grow flex flex-col items-center justify-center px-4 py-6 max-w-md mx-auto w-full relative">
+        
+        <!-- Timer State Container -->
+        <div id="stateIndicator" class="mb-4 px-5 py-1.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span id="stateName">PREPARE</span>
+        </div>
+
+        <!-- Giant Radial Countdowns -->
+        <div class="relative w-80 h-80 flex items-center justify-center mb-8">
+            <!-- Glow layers -->
+            <div id="glowCircle" class="absolute inset-0 rounded-full bg-emerald-500/5 blur-2xl transition-all duration-500"></div>
+            
+            <!-- SVG Circle Track and Indicator -->
+            <svg class="w-full h-full -rotate-90">
+                <!-- Base Track -->
+                <circle cx="160" cy="160" r="130" 
+                        stroke="rgba(30, 41, 59, 0.6)" 
+                        stroke-width="12" 
+                        fill="transparent" />
+                <!-- Active Progress Indicator -->
+                <circle id="progress-ring-circle" cx="160" cy="160" r="130" 
+                        stroke="rgb(16, 185, 129)" 
+                        stroke-width="12" 
+                        fill="transparent" 
+                        stroke-dasharray="816.8" 
+                        stroke-dashoffset="0" 
+                        stroke-linecap="round" />
+            </svg>
+
+            <!-- Digital Metrics Overlay inside Circle -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center select-none">
+                <!-- Time remaining -->
+                <span id="timeRemainingText" class="text-7xl font-black tracking-tighter text-white tabular-nums">40.0</span>
+                <!-- Seconds text -->
+                <span class="text-xs font-bold text-slate-400 tracking-widest uppercase mt-1">Seconds</span>
+                
+                <!-- Tiny visual cue under timer -->
+                <div class="flex gap-1.5 mt-4" id="dotsContainer">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-300 bg-emerald-400" id="dot-work"></span>
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-300 bg-slate-700" id="dot-beep"></span>
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-300 bg-slate-700" id="dot-rest"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Panels -->
+        <div class="grid grid-cols-2 gap-4 w-full mb-6">
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Interval Cycle</span>
+                <span id="cyclesCompleted" class="text-2xl font-black text-indigo-400">0</span>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Total Elapsed</span>
+                <span id="totalTimeElapsed" class="text-2xl font-black text-slate-200">00:00</span>
+            </div>
+        </div>
+
+        <!-- Sound & Vibe Customizations Card -->
+        <div class="w-full bg-slate-900/40 border border-slate-800/40 rounded-2xl p-4 backdrop-blur-md">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Interactive Setup</span>
+                <span id="soundStatusBadge" class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase">AUDIO ON</span>
+            </div>
+            <div class="flex items-center justify-between gap-6">
+                <!-- Sound Option -->
+                <button id="toggleSoundBtn" class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all bg-slate-800/60 border-slate-700/60 text-slate-200 hover:bg-slate-800">
+                    <i class="fa-solid fa-volume-high" id="soundIcon"></i>
+                    <span>Tones</span>
+                </button>
+                <!-- Haptic Option -->
+                <button id="toggleVibeBtn" class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all bg-slate-800/60 border-slate-700/60 text-slate-200 hover:bg-slate-800">
+                    <i class="fa-solid fa-mobile-screen-button text-indigo-400"></i>
+                    <span>Vibration</span>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Detailed State / Interval Roadmap Footer -->
+    <footer class="w-full max-w-md mx-auto px-4 pb-6 z-10">
+        <div class="bg-slate-900/60 border border-slate-800/50 rounded-2xl p-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 text-center">Loop Timeline Information</h3>
+            <div class="flex items-center justify-between text-xs font-semibold">
+                <div class="flex flex-col items-center gap-1">
+                    <span class="text-emerald-400 font-bold">1. WORK</span>
+                    <span class="text-[10px] text-slate-500">40 Secs</span>
+                </div>
+                <i class="fa-solid fa-angle-right text-slate-700"></i>
+                <div class="flex flex-col items-center gap-1">
+                    <span class="text-rose-400 font-bold">2. BEEP TRANSIT</span>
+                    <span class="text-[10px] text-slate-500">2 Secs</span>
+                </div>
+                <i class="fa-solid fa-angle-right text-slate-700"></i>
+                <div class="flex flex-col items-center gap-1">
+                    <span class="text-indigo-400 font-bold">3. REST</span>
+                    <span class="text-[10px] text-slate-500">10 Secs</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Audio Beep / Synthesizer Script -->
+    <script>
+        // DOM Handles
+        const topRightCtrlBtn = document.getElementById('topRightCtrlBtn');
+        const btnIcon = document.getElementById('btnIcon');
+        const btnText = document.getElementById('btnText');
+        
+        const stateIndicator = document.getElementById('stateIndicator');
+        const stateName = document.getElementById('stateName');
+        const glowCircle = document.getElementById('glowCircle');
+        
+        const timeRemainingText = document.getElementById('timeRemainingText');
+        const progressCircle = document.getElementById('progress-ring-circle');
+        
+        const dotWork = document.getElementById('dot-work');
+        const dotBeep = document.getElementById('dot-beep');
+        const dotRest = document.getElementById('dot-rest');
+        
+        const cyclesCompletedEl = document.getElementById('cyclesCompleted');
+        const totalTimeElapsedEl = document.getElementById('totalTimeElapsed');
+        
+        const toggleSoundBtn = document.getElementById('toggleSoundBtn');
+        const soundIcon = document.getElementById('soundIcon');
+        const soundStatusBadge = document.getElementById('soundStatusBadge');
+        const toggleVibeBtn = document.getElementById('toggleVibeBtn');
+
+        // Circular calculations
+        const circleRadius = 130;
+        const circumference = 2 * Math.PI * circleRadius; // ~816.81
+        progressCircle.style.strokeDasharray = `${circumference}`;
+        progressCircle.style.strokeDashoffset = '0';
+
+        // Timer State Machine Engine Definitions
+        const PHASES = {
+            WORK: {
+                id: 'WORK',
+                label: 'EXERCISE',
+                duration: 40000, // 40 seconds in ms
+                color: 'rgb(16, 185, 129)', // Tailwind Emerald-500
+                borderClass: 'border-emerald-500/20',
+                bgClass: 'bg-emerald-500/10',
+                textClass: 'text-emerald-400',
+                glowClass: 'glow-emerald',
+                dot: dotWork
+            },
+            BEEP_TRANSITION: {
+                id: 'BEEP',
+                label: 'TRANSITION',
+                duration: 2000, // 2 seconds in ms
+                color: 'rgb(244, 63, 94)', // Tailwind Rose-500
+                borderClass: 'border-rose-500/20',
+                bgClass: 'bg-rose-500/10',
+                textClass: 'text-rose-400',
+                glowClass: 'glow-rose',
+                dot: dotBeep
+            },
+            REST: {
+                id: 'REST',
+                label: 'REST TIME',
+                duration: 10000, // 10 seconds in ms
+                color: 'rgb(99, 102, 241)', // Tailwind Indigo-500
+                borderClass: 'border-indigo-500/20',
+                bgClass: 'bg-indigo-500/10',
+                textClass: 'text-indigo-400',
+                glowClass: 'glow-indigo',
+                dot: dotRest
+            }
+        };
+
+        // Internal Engine Variables
+        let currentPhase = PHASES.WORK;
+        let isRunning = false;
+        
+        let phaseStartTime = 0;
+        let phaseElapsedTime = 0; 
+        
+        let totalElapsedMs = 0;
+        let completedCyclesCount = 0;
+        
+        let lastLoggedTickSeconds = 0;
+        let timerTickInterval = null;
+
+        // Customization Audio / Vibe options
+        let soundEnabled = true;
+        let vibeEnabled = true;
+        let audioCtx = null;
+
+        // Web Audio Synthesizer Tone Player
+        function triggerSynthesizerBeep(freq, lengthSeconds, repeatCount = 1) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                
+                let currentOffset = 0;
+                for (let i = 0; i < repeatCount; i++) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + currentOffset);
+                    
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime + currentOffset);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + currentOffset + lengthSeconds);
+                    
+                    osc.start(audioCtx.currentTime + currentOffset);
+                    osc.stop(audioCtx.currentTime + currentOffset + lengthSeconds);
+                    
+                    currentOffset += lengthSeconds + 0.08;
+                }
+            } catch (e) {
+                console.warn("Synth failed to output tone safely: ", e);
+            }
+        }
+
+        // Trigger Mobile Haptic feedback if supported by browser
+        function triggerHaptic(durationMs) {
+            if (vibeEnabled && 'vibrate' in navigator) {
+                navigator.vibrate(durationMs);
+            }
+        }
+
+        // Main Play & Pause state controllers
+        function toggleTimerEngine() {
+            if (isRunning) {
+                pauseEngine();
+            } else {
+                startEngine();
+            }
+        }
+
+        function startEngine() {
+            if (isRunning) return;
+            
+            // Resume/Initiate Audio Context for security contexts
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) {}
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            isRunning = true;
+            updateControlUI();
+
+            // Setup phase references
+            phaseStartTime = Date.now() - phaseElapsedTime;
+            
+            // High frequency interval (50ms) ensures buttery smooth rendering
+            timerTickInterval = setInterval(onEngineTick, 50);
+            
+            // Micro beep on initial click
+            triggerSynthesizerBeep(650, 0.12);
+        }
+
+        function pauseEngine() {
+            if (!isRunning) return;
+            isRunning = false;
+            clearInterval(timerTickInterval);
+            phaseElapsedTime = Date.now() - phaseStartTime;
+            updateControlUI();
+            
+            // Low note for pause confirmation
+            triggerSynthesizerBeep(400, 0.15);
+        }
+
+        // The Engine core loop
+        function onEngineTick() {
+            const now = Date.now();
+            const elapsedThisSession = now - phaseStartTime;
+            
+            // Accumulate total elapsed time
+            totalElapsedMs += 50; 
+            updateTotalTimeDisplay();
+
+            const currentLimit = currentPhase.duration;
+            const remaining = Math.max(0, currentLimit - elapsedThisSession);
+            const remainingSecs = remaining / 1000;
+
+            // Render visual timer & progress rings
+            timeRemainingText.textContent = remainingSecs.toFixed(1);
+            
+            // Calculate progress offset
+            const ratio = remaining / currentLimit;
+            const offset = ratio * circumference;
+            progressCircle.style.strokeDashoffset = offset;
+
+            // Phase State Events: Handle Beep sequence patterns
+            if (currentPhase.id === 'BEEP') {
+                const currentSecFloor = Math.floor(remainingSecs);
+                if (currentSecFloor !== lastLoggedTickSeconds && remaining > 100) {
+                    lastLoggedTickSeconds = currentSecFloor;
+                    // Pulse beep during transit phase
+                    triggerSynthesizerBeep(880, 0.15);
+                    triggerHaptic(60);
+                }
+            }
+
+            // Phase Transitions
+            if (remaining <= 0) {
+                executeTransitionToNextPhase();
+            }
+        }
+
+        function executeTransitionToNextPhase() {
+            phaseElapsedTime = 0;
+            phaseStartTime = Date.now();
+
+            if (currentPhase.id === 'WORK') {
+                // Transitioning to Beep Transition Phase
+                currentPhase = PHASES.BEEP_TRANSITION;
+                triggerSynthesizerBeep(980, 0.35, 2); // Distinct start double-beep
+                triggerHaptic([100, 50, 100]);
+            } else if (currentPhase.id === 'BEEP') {
+                // Transitioning to Rest Phase
+                currentPhase = PHASES.REST;
+                triggerSynthesizerBeep(520, 0.4); // Calmer lower tone
+                triggerHaptic(200);
+            } else if (currentPhase.id === 'REST') {
+                // Return to Exercise Loop
+                currentPhase = PHASES.WORK;
+                completedCyclesCount++;
+                cyclesCompletedEl.textContent = completedCyclesCount;
+                
+                triggerSynthesizerBeep(780, 0.5); // Rich alert tone
+                triggerHaptic([300, 100, 300]);
+            }
+
+            lastLoggedTickSeconds = -1;
+            applyPhaseStyles();
+        }
+
+        // Dynamically style based on the current interval phase
+        function applyPhaseStyles() {
+            // Update Text Title
+            stateName.textContent = currentPhase.label;
+            
+            // SVG ring stroke color
+            progressCircle.style.stroke = currentPhase.color;
+            
+            // Theme pill container updates
+            stateIndicator.className = `mb-4 px-5 py-1.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 ${currentPhase.bgClass} ${currentPhase.textClass} border ${currentPhase.borderClass} flex items-center gap-2`;
+            
+            // Glowing Backdrop Indicator
+            glowCircle.className = `absolute inset-0 rounded-full blur-2xl transition-all duration-500 ${currentPhase.bgClass}`;
+            
+            // Small Progress Track Dots Active Toggling
+            [dotWork, dotBeep, dotRest].forEach(dot => {
+                dot.classList.remove('bg-emerald-400', 'bg-rose-400', 'bg-indigo-400', 'bg-slate-700');
+                dot.classList.add('bg-slate-700');
+            });
+
+            if (currentPhase.id === 'WORK') {
+                dotWork.classList.remove('bg-slate-700');
+                dotWork.classList.add('bg-emerald-400');
+            } else if (currentPhase.id === 'BEEP') {
+                dotBeep.classList.remove('bg-slate-700');
+                dotBeep.classList.add('bg-rose-400');
+            } else if (currentPhase.id === 'REST') {
+                dotRest.classList.remove('bg-slate-700');
+                dotRest.classList.add('bg-indigo-400');
+            }
+
+            // Immediately set the starting string
+            const startSecs = (currentPhase.duration / 1000).toFixed(1);
+            timeRemainingText.textContent = startSecs;
+            progressCircle.style.strokeDashoffset = '0';
+        }
+
+        // UI Text and Icon Updates for Top Right Control
+        function updateControlUI() {
+            if (isRunning) {
+                // Set pause state visuals
+                topRightCtrlBtn.className = "flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg transition-all active:scale-95 duration-200 border bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-400/30 hover:shadow-amber-500/10 hover:brightness-110";
+                btnIcon.innerHTML = `<i class="fa-solid fa-pause"></i>`;
+                btnText.textContent = "PAUSE";
+            } else {
+                // Set play/resume state visuals
+                topRightCtrlBtn.className = "flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg transition-all active:scale-95 duration-200 border bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-400/30 hover:shadow-emerald-500/10 hover:brightness-110";
+                btnIcon.innerHTML = `<i class="fa-solid fa-play"></i>`;
+                btnText.textContent = "RESUME";
+            }
+        }
+
+        // Format Session Time (mm:ss)
+        function updateTotalTimeDisplay() {
+            const seconds = Math.floor(totalElapsedMs / 1000);
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            totalTimeElapsedEl.textContent = `${m}:${s}`;
+        }
+
+        // Settings Toggles (Sound & Vibe)
+        toggleSoundBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-emerald-400";
+                soundStatusBadge.textContent = "AUDIO ON";
+                soundStatusBadge.className = "text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase";
+                triggerSynthesizerBeep(700, 0.1);
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-slate-500";
+                soundStatusBadge.textContent = "MUTED";
+                soundStatusBadge.className = "text-[10px] px-2 py-0.5 rounded-md font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase";
+            }
+        });
+
+        toggleVibeBtn.addEventListener('click', () => {
+            vibeEnabled = !vibeEnabled;
+            if (vibeEnabled) {
+                toggleVibeBtn.querySelector('i').className = "fa-solid fa-mobile-screen-button text-indigo-400";
+                triggerHaptic(80);
+            } else {
+                toggleVibeBtn.querySelector('i').className = "fa-solid fa-mobile-screen-button text-slate-500";
+            }
+        });
+
+        // Initialize state indicators & button bindings
+        topRightCtrlBtn.addEventListener('click', toggleTimerEngine);
+        applyPhaseStyles();
+
+        // Support Spacebar for global play/pause toggle convenience
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                toggleTimerEngine();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -21,7 +21,7 @@
     <a href="https://github.com/sahibdeepme/hoster/issues/new?title=Feature+Request:" title="Submit Feature Idea">
       <img src="https://img.shields.io/badge/💡_REQUEST-FEATURE-0ea5e9?style=for-the-badge&logo=lightbulb&logoColor=white" alt="Feature Request" />
     </a>
-    <a href="https://github.com/sahibdeepme/hoster/lisences/1.img" title="MIT License">
+    <a href="https://github.com/sahibdeepme/Lisences/IMG_9570.jpeg" title="MIT License">
       <img src="https://img.shields.io/badge/LICENSE-MIT-10b981?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License" />
     </a>
   </p>

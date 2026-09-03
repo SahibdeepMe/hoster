@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://sahibdeepme.github.io/hoster/" target="_blank">
-    <img src="https://img.shields.io/badge/⚡_LAUNCH_DASHBOARD-sahibdeepme.github.io%2Fcanvas-6366f1?style=for-the-badge&logoColor=white" alt="Launch Dashboard" height="42" />
+    <img src="https://img.shields.io/badge/⚡_LAUNCH_DASHBOARD-sahibdeepme.github.io%2Fhodter-6366f1?style=for-the-badge&logoColor=white" alt="Launch Dashboard" height="42" />
   </a>
 </p>
 
@@ -27,4 +27,4 @@
 3. Deploy instantly via the GitHub REST API to get a clean, production-ready URL:
 
 ```text
-[https://sahibdeepme.github.io/canvas/p/](https://sahibdeepme.github.io/canvas/p/)<your-slug>.html
+[https://sahibdeepme.github.io/hodter/p/](https://sahibdeepme.github.io/hoster/p/)<your-slug>.html

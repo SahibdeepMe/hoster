@@ -1,30 +1,31 @@
-# 🚀 Canvas // Static HTML Micro-Host
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Platform-GitHub%20Pages-blue?style=for-the-badge&logo=github" alt="Platform: GitHub Pages" />
-  <img src="https://img.shields.io/badge/Deploy-Serverless%20REST%20API-indigo?style=for-the-badge&logo=fastapi" alt="Deployment" />
-  <img src="https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge" alt="License" />
-</p>
-
-<p align="center">
-  <strong>Deploy, manage, and instantly host standalone single-file HTML apps, tools, and landing pages with custom URLs directly from your browser—no manual commits or terminal required.</strong>
-</p>
-
-<p align="center">
-  <a href="https://sahibdeepme.github.io/hoster/" target="_blank">
-    <img src="https://img.shields.io/badge/⚡_LAUNCH_DASHBOARD-sahibdeepme.github.io%2Fhoster-6366f1?style=for-the-badge&logoColor=white" alt="Launch Dashboard" height="42" />
-  </a>
-</p>
-
----
-
-## 🌟 Overview
-
-**Canvas** turns a single GitHub Pages repository into an instant, on-demand hosting hub. Instead of creating a new repository or manually running `git add`, `commit`, and `push` every time you build an interactive single-file prototype or mini-app, Canvas handles the entire workflow directly in the browser:
-
-1. Drag and drop or paste any self-contained HTML file (with inline CSS and JavaScript).
-2. Assign a custom slug or path (e.g., `ServerSetup`, `calculator`, `portfolio`).
-3. Deploy instantly via the GitHub REST API to get a clean, production-ready URL:
-
-```text
-[https://sahibdeepme.github.io/hodter/p/](https://sahibdeepme.github.io/hoster/p/)<your-slug>.html
+🔗 Quick Links & Developer Space
+<div align="center">
+<table border="0">
+<tr>
+<td align="center">
+<a href="https://github.com/sahibdeepme">
+<img src="https://img.shields.io/badge/GitHub_Profile-sahibdeepme-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Profile" /><br />
+<sub>Explore Repositories</sub>
+</a>
+</td>
+<td align="center">
+<a href="https://sahibdeepme.github.io/hoster/">
+<img src="https://img.shields.io/badge/Live_Project-Hoster_Dashboard-6366F1?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Hoster Live" /><br />
+<sub>Open In Browser</sub>
+</a>
+</td>
+<td align="center">
+<a href="https://github.com/sahibdeepme/hoster/issues">
+<img src="https://img.shields.io/badge/Feedback-Submit_Issue-10B981?style=for-the-badge&logo=githubactions&logoColor=white" alt="Report Issue" /><br />
+<sub>Feature Requests</sub>
+</a>
+</td>
+</tr>
+</table>
+<br />
+<sub>Built & Maintained with care by <a href="https://github.com/sahibdeepme">@sahibdeepme</a> • Open Source under the MIT License</sub>
+<br /><br />
+<a href="https://sahibdeepme.github.io/hoster/">
+<img src="https://img.shields.io/badge/🚀_LAUNCH_HOSTER_NOW-0284C7?style=for-the-badge&logo=rocket&logoColor=white" height="42" alt="Launch Hoster Now" />
+</a>
+</div>

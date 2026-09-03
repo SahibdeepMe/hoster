@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeTadka | Broadcast Vault v5</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #e50914; --bg-dark: #050505; --bg-card: #0a0a0a; }
+        body { background-color: var(--bg-dark); color: white; font-family: 'Inter', sans-serif; overflow-x: hidden; margin: 0; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+        
+        .glass { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.05); }
+        @keyframes loading-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+        .animate-loading { animation: loading-progress 2s ease-in-out infinite; }
+        
+        .nav-link.active { color: white; position: relative; }
+        .nav-link.active::after { content: ''; position: absolute; bottom: -8px; left: 0; width: 100%; height: 2px; background: var(--primary); }
+
+        input[type="range"] { -webkit-appearance: none; background: rgba(255,255,255,0.1); border-radius: 5px; height: 4px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: var(--primary); cursor: pointer; }
+        
+        .modal-enter { animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        
+        .category-label { position: sticky; top: 100px; z-index: 40; background: linear-gradient(to right, var(--bg-dark), transparent); }
+    </style>
+</head>
+<body class="selection:bg-red-600">
+
+    <div id="loader" class="fixed inset-0 bg-[#020202] flex flex-col items-center justify-center z-[9999] transition-opacity duration-1000">
+        <div class="relative">
+            <div class="text-7xl md:text-9xl font-black text-red-600 tracking-tighter animate-pulse flex items-baseline">
+                FREE<span class="text-white">TADKA</span>
+            </div>
+            <div class="absolute -bottom-6 left-0 w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <div class="h-full bg-red-600 animate-loading" style="width: 30%;"></div>
+            </div>
+        </div>
+        <p class="mt-12 text-zinc-500 font-black tracking-[1em] text-[10px] uppercase">Booting Broadcast Core v5</p>
+    </div>
+
+    <div id="app" class="hidden min-h-screen flex flex-col">
+        <nav id="navbar" class="fixed top-0 w-full z-[100] px-6 md:px-16 py-8 flex items-center justify-between transition-all duration-500 bg-gradient-to-b from-black via-black/70 to-transparent">
+            <div class="flex items-center gap-12">
+                <h1 class="text-3xl font-black text-red-600 tracking-tighter drop-shadow-lg cursor-pointer" onclick="changeSection('home')">FREE TADKA</h1>
+                <div class="hidden lg:flex gap-10 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                    <button onclick="changeSection('home')" id="nav-home" class="nav-link active hover:text-white transition">Home</button>
+                    <button onclick="changeSection('originals')" id="nav-originals" class="nav-link hover:text-white transition">Originals</button>
+                    <button onclick="changeSection('vault')" id="nav-vault" class="nav-link hover:text-white transition">Vault</button>
+                    <button onclick="changeSection('live')" id="nav-live" class="nav-link hover:text-white transition flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping"></span> Live TV
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div id="owner-controls" class="hidden flex gap-4">
+                    <button onclick="exportVault()" class="bg-zinc-800 hover:bg-zinc-700 p-2.5 rounded-full transition text-white" title="Export Vault (.txt)">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                    </button>
+                    <label class="bg-zinc-800 hover:bg-zinc-700 p-2.5 rounded-full transition cursor-pointer text-white" title="Import Vault (.txt)">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        <input type="file" id="import-file" class="hidden" accept=".txt" onchange="importVault(this)">
+                    </label>
+                    <button onclick="openManifest()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95">
+                        New Content
+                    </button>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-red-600 to-red-900 border border-white/20 flex items-center justify-center font-black text-xs cursor-pointer shadow-2xl">FT</div>
+            </div>
+        </nav>
+
+        <div id="hero-banner" class="relative h-[85vh] w-full flex items-end pb-24 px-6 md:px-16 overflow-hidden">
+            <div id="hero-visuals" class="absolute inset-0 z-0">
+                <img id="hero-img" src="https://placehold.co/1920x1080/050505/333333?text=FreeTadka" class="w-full h-full object-cover scale-105 opacity-40 transition-all duration-1000" alt="Banner">
+                <div class="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#050505]/40 to-transparent"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent"></div>
+            </div>
+            <div id="hero-details" class="relative z-10 max-w-4xl opacity-0 transition-all duration-1000 translate-y-10">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="px-3 py-1 bg-red-600 text-[10px] font-black tracking-widest uppercase rounded" id="hero-category-tag">Featured</span>
+                    <span id="hero-meta-tag" class="text-[10px] font-black tracking-[0.4em] uppercase text-zinc-400">Cinematic Broadcast</span>
+                </div>
+                <h2 id="hero-title" class="text-6xl md:text-8xl font-black mb-8 leading-[0.8] tracking-tighter drop-shadow-2xl uppercase"></h2>
+                <p id="hero-desc" class="text-lg text-zinc-300 mb-10 line-clamp-3 font-medium max-w-2xl leading-relaxed italic border-l-4 border-red-600 pl-6 bg-black/20 py-2 backdrop-blur-sm"></p>
+                <div class="flex flex-wrap gap-5">
+                    <button id="hero-play-btn" class="bg-white text-black px-10 py-4 rounded-lg font-black flex items-center gap-4 hover:scale-105 transition-all text-lg shadow-2xl">
+                        <i data-lucide="play" class="w-6 h-6 fill-current"></i> Watch Now
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-area" class="relative z-20 -mt-20 space-y-24 pb-48 px-6 md:px-16">
+            <section id="main-section">
+                <div class="flex items-end justify-between mb-12">
+                    <h3 id="section-title" class="text-3xl font-black tracking-tighter uppercase border-b-4 border-red-600 pb-2">Latest Archives</h3>
+                    <div id="vault-count" class="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Scanning Storage...</div>
+                </div>
+                <div id="movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10"></div>
+            </section>
+        </div>
+
+        <div id="detail-modal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-0 md:p-12 transition-all duration-300">
+            <div class="absolute inset-0 bg-black/95 backdrop-blur-3xl" onclick="closeDetail()"></div>
+            <div id="detail-card" class="relative bg-[#0a0a0a] w-full max-w-7xl h-full max-h-full md:max-h-[90vh] md:rounded-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row border border-white/10 modal-enter">
+                <div class="flex-grow bg-black relative aspect-video lg:aspect-auto">
+                    <video id="detail-video-preview" muted loop playsinline class="w-full h-full object-cover opacity-60"></video>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                    <button onclick="closeDetail()" class="absolute top-6 left-6 z-[210] p-4 bg-black/50 hover:bg-white hover:text-black rounded-full transition-all text-white">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div id="detail-info-panel" class="w-full lg:w-[500px] p-8 md:p-12 overflow-y-auto bg-zinc-950/80 backdrop-blur-xl border-l border-white/5"></div>
+            </div>
+        </div>
+
+        <div id="player-overlay" class="hidden fixed inset-0 z-[1000] bg-black flex items-center justify-center group select-none overflow-hidden">
+            <video id="main-video" class="w-full h-full object-contain cursor-pointer"></video>
+            
+            <div id="player-controls-top" class="absolute top-0 w-full p-8 flex justify-between items-start transition-all duration-500 bg-gradient-to-b from-black/80 to-transparent">
+                <div class="flex flex-col">
+                    <span id="player-label" class="text-red-600 font-black tracking-[0.3em] text-xs uppercase mb-1">Streaming HD</span>
+                    <h2 id="player-title" class="text-3xl font-black tracking-tighter uppercase"></h2>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="relative group/quality">
+                        <button class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg flex items-center gap-2 border border-white/5 transition-all">
+                            <i data-lucide="settings-2" class="w-4 h-4"></i>
+                            <span id="current-quality" class="text-xs font-bold">Auto</span>
+                        </button>
+                        <div id="quality-menu" class="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-white/10 rounded-xl overflow-hidden hidden group-hover/quality:block z-[1100]"></div>
+                    </div>
+                    <button onclick="closePlayer()" class="p-4 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="x" class="w-8 h-8"></i></button>
+                </div>
+            </div>
+
+            <div id="player-controls-bottom" class="absolute bottom-0 w-full p-8 transition-all duration-500 bg-gradient-to-t from-black/90 to-transparent">
+                <div id="player-progress-container" class="w-full h-1.5 bg-white/20 rounded-full mb-8 cursor-pointer relative overflow-hidden group/bar" onclick="seekVideo(event)">
+                    <div id="player-progress-bar" class="absolute top-0 left-0 h-full bg-red-600 transition-all" style="width: 0%"></div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-8">
+                        <button id="player-play-btn" onclick="togglePlay()" class="hover:scale-125 transition-transform"><i data-lucide="play" id="play-icon" class="w-8 h-8 fill-current"></i></button>
+                        <button onclick="videoJump(-10)"><i data-lucide="rotate-ccw" class="w-6 h-6 hover:text-red-600 transition"></i></button>
+                        <button onclick="videoJump(10)"><i data-lucide="rotate-cw" class="w-6 h-6 hover:text-red-600 transition"></i></button>
+                        <div class="flex items-center gap-4">
+                            <i data-lucide="volume-2" class="w-5 h-5 text-zinc-500"></i>
+                            <input type="range" id="volume-slider" class="w-24 accent-red-600" min="0" max="1" step="0.05" value="1" oninput="changeVolume(this.value)">
+                        </div>
+                    </div>
+                    <button onclick="toggleFullscreen()"><i data-lucide="maximize" class="w-6 h-6 hover:text-red-600 transition"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="manifest-modal" class="hidden fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-3xl overflow-y-auto">
+            <div class="bg-[#0f0f0f] w-full max-w-5xl rounded-3xl p-8 md:p-12 border border-red-600/30 shadow-2xl my-auto modal-enter">
+                <div class="flex justify-between items-center mb-10">
+                    <h2 class="text-3xl font-black uppercase tracking-tighter flex items-center gap-4"><i data-lucide="plus-circle" class="w-8 h-8 text-red-600"></i>Broadcast Manifest</h2>
+                    <i data-lucide="x" class="cursor-pointer text-zinc-600 hover:text-white transition w-10 h-10" onclick="closeManifest()"></i>
+                </div>
+
+                <form id="manifest-form" class="space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div class="space-y-6">
+                            <input id="f-title" placeholder="Entry Title (Movie or Channel)" required class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-6 py-4 outline-none font-bold focus:ring-1 ring-red-600 transition">
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <select id="f-type" onchange="toggleManifestFields()" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-4 outline-none font-bold">
+                                    <option value="movie">Vault Archive</option>
+                                    <option value="original">Originals</option>
+                                    <option value="live">Live Channel (M3U)</option>
+                                </select>
+                                <select id="f-rating" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-4 outline-none font-bold">
+                                    <option>U</option><option>UA 13+</option><option>UA 16+</option><option>A</option>
+                                </select>
+                            </div>
+
+                            <!-- Live Specific: Category -->
+                            <div id="live-fields" class="hidden">
+                                <input id="f-category" placeholder="Channel Category (Sports, News, etc.)" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-6 py-4 outline-none font-bold focus:ring-1 ring-blue-600">
+                            </div>
+
+                            <textarea id="f-desc" placeholder="Archive Synopsis or Channel Description" rows="4" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-6 py-4 outline-none resize-none font-medium text-zinc-400"></textarea>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div id="asset-thumbnail" class="p-4 bg-zinc-900 rounded-xl border border-zinc-800"></div>
+                            <div id="asset-trailer" class="p-4 bg-zinc-900 rounded-xl border border-zinc-800"></div>
+                            <div id="asset-movie" class="p-4 bg-zinc-900 rounded-xl border border-zinc-800"></div>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 text-white font-black py-6 rounded-2xl hover:bg-red-700 transition active:scale-95 text-xl uppercase tracking-[0.2em]">Commit to Storage</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DB_NAME = 'FreeTadka_Vault_v5_Core';
+        const STORE_NAME = 'archives';
+        let db, movies = [], isOwner = false, keyBuffer = "", currentSection = 'home';
+        let hlsPlayer = null;
+
+        // Assets cache to handle both URL strings and Base64 blobs
+        let mediaCache = { thumbnail: '', trailer: '', movie: '' };
+
+        // --- Database Management ---
+        async function initDB() {
+            return new Promise((resolve) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            });
+        }
+
+        async function loadMovies() {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const request = tx.objectStore(STORE_NAME).getAll();
+            request.onsuccess = () => { 
+                movies = request.result; 
+                renderGrid(); 
+            };
+        }
+
+        // --- Grid Rendering Logic ---
+        function renderGrid() {
+            const grid = document.getElementById('movie-grid');
+            const count = document.getElementById('vault-count');
+            const area = document.getElementById('main-section');
+            grid.innerHTML = '';
+            
+            let filtered = [];
+            if (currentSection === 'home') filtered = movies;
+            if (currentSection === 'originals') filtered = movies.filter(m => m.type === 'original');
+            if (currentSection === 'vault') filtered = movies.filter(m => m.type === 'movie');
+            
+            count.innerText = `${filtered.length} Objects Scanned`;
+
+            if (currentSection === 'live') {
+                renderLiveGrid();
+                return;
+            }
+
+            if (filtered.length > 0) {
+                updateHero(filtered[0]);
+                filtered.forEach(m => {
+                    grid.appendChild(createCard(m));
+                });
+            } else {
+                grid.innerHTML = `<div class="col-span-full py-20 text-center opacity-20"><i data-lucide="database" class="mx-auto w-16 h-16 mb-4"></i><p class="font-black uppercase tracking-widest">No matching archives found</p></div>`;
+            }
+            lucide.createIcons();
+        }
+
+        function renderLiveGrid() {
+            const grid = document.getElementById('movie-grid');
+            grid.innerHTML = '';
+            const liveMovies = movies.filter(m => m.type === 'live');
+            
+            // Group by category
+            const categories = [...new Set(liveMovies.map(m => m.category || 'General'))];
+            
+            if (liveMovies.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-20 text-center opacity-20"><p class="font-black uppercase tracking-widest">No Live Channels</p></div>`;
+                return;
+            }
+
+            categories.forEach(cat => {
+                const header = document.createElement('div');
+                header.className = "col-span-full mt-10 mb-6";
+                header.innerHTML = `<h4 class="text-sm font-black text-red-600 uppercase tracking-[0.5em] flex items-center gap-4"><span class="w-8 h-[2px] bg-red-600"></span>${cat}</h4>`;
+                grid.appendChild(header);
+
+                liveMovies.filter(m => (m.category || 'General') === cat).forEach(m => {
+                    grid.appendChild(createCard(m, true));
+                });
+            });
+        }
+
+        function createCard(m, isLive = false) {
+            const card = document.createElement('div');
+            card.className = `relative group ${isLive ? 'aspect-square md:aspect-video rounded-xl' : 'aspect-[2/3] rounded-lg'} bg-zinc-900 overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 shadow-2xl border border-white/5 hover:border-red-600/50`;
+            card.onclick = () => openDetail(m);
+            card.innerHTML = `
+                <img src="${m.thumbnail || 'https://placehold.co/400x600/0a0a0a/444444?text=Vault'}" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all flex flex-col justify-end p-4">
+                    <div class="flex gap-2 mb-3">
+                        <button class="p-2 bg-white rounded-full text-black hover:scale-110 transition"><i data-lucide="play" class="w-3 h-3 fill-current"></i></button>
+                        ${isOwner ? `<button onclick="event.stopPropagation(); deleteMovie(${m.id})" class="p-2 bg-zinc-800/80 hover:bg-red-600 rounded-full text-white ml-auto transition"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` : ''}
+                    </div>
+                    <h4 class="font-black text-[10px] uppercase tracking-tighter mb-1 line-clamp-1">${m.title}</h4>
+                    <div class="flex justify-between text-[8px] font-bold text-zinc-400">
+                        <span>${m.rating}</span>
+                        <span class="${isLive ? 'text-blue-500' : 'text-red-500'} uppercase">${isLive ? m.category : m.type}</span>
+                    </div>
+                </div>
+                ${isLive ? '<div class="absolute top-3 right-3 px-2 py-1 bg-red-600 text-[8px] font-black uppercase rounded shadow-lg animate-pulse">Live</div>' : ''}
+            `;
+            return card;
+        }
+
+        function updateHero(m) {
+            const container = document.getElementById('hero-details');
+            if (!m) return;
+            container.classList.add('opacity-0');
+            setTimeout(() => {
+                document.getElementById('hero-img').src = m.thumbnail;
+                document.getElementById('hero-title').innerText = m.title;
+                document.getElementById('hero-desc').innerText = m.description || "Unrestricted cinematic access across the archive.";
+                document.getElementById('hero-category-tag').innerText = m.type;
+                document.getElementById('hero-play-btn').onclick = () => startPlayer(m);
+                container.classList.remove('opacity-0');
+                container.classList.remove('translate-y-10');
+            }, 300);
+        }
+
+        // --- STREAMING_CHUNK: Advanced Player Logic ---
+        function startPlayer(m) {
+            const overlay = document.getElementById('player-overlay');
+            const video = document.getElementById('main-video');
+            document.getElementById('player-title').innerText = m.title;
+            overlay.classList.remove('hidden');
+
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+                hlsPlayer = null;
+            }
+
+            const isM3U8 = (m.movie && typeof m.movie === 'string' && m.movie.includes('.m3u8')) || m.type === 'live';
+
+            if (isM3U8) {
+                if (Hls.isSupported()) {
+                    hlsPlayer = new Hls();
+                    hlsPlayer.loadSource(m.movie);
+                    hlsPlayer.attachMedia(video);
+                    hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+                        setupQualityMenu(hlsPlayer.levels);
+                        video.play();
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = m.movie;
+                    video.play();
+                }
+            } else {
+                video.src = m.movie;
+                video.play();
+                document.getElementById('quality-menu').innerHTML = `<p class='p-4 text-[10px] text-zinc-500 uppercase font-black'>Constant Quality</p>`;
+            }
+            
+            video.ontimeupdate = () => {
+                const prog = (video.currentTime / video.duration) * 100;
+                document.getElementById('player-progress-bar').style.width = isNaN(prog) ? '0%' : prog + '%';
+            };
+        }
+
+        function setupQualityMenu(levels) {
+            const menu = document.getElementById('quality-menu');
+            menu.innerHTML = `<button onclick="hlsPlayer.currentLevel = -1; document.getElementById('current-quality').innerText = 'Auto'" class="w-full p-4 text-left hover:bg-white/10 text-[10px] uppercase font-bold border-b border-white/5">Auto Resolution</button>`;
+            levels.forEach((l, i) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-4 text-left hover:bg-white/10 text-[10px] uppercase font-bold border-b border-white/5";
+                btn.innerText = `${l.height}p Broadcast`;
+                btn.onclick = () => {
+                    hlsPlayer.currentLevel = i;
+                    document.getElementById('current-quality').innerText = l.height + 'p';
+                };
+                menu.appendChild(btn);
+            });
+        }
+
+        // --- STREAMING_CHUNK: Manifest Asset Management ---
+        function openManifest() {
+            mediaCache = { thumbnail: '', trailer: '', movie: '' };
+            ['thumbnail', 'trailer', 'movie'].forEach(key => buildAssetInput(key));
+            document.getElementById('manifest-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function toggleManifestFields() {
+            const type = document.getElementById('f-type').value;
+            const liveFields = document.getElementById('live-fields');
+            if (type === 'live') {
+                liveFields.classList.remove('hidden');
+            } else {
+                liveFields.classList.add('hidden');
+            }
+        }
+
+        function buildAssetInput(key) {
+            const container = document.getElementById(`asset-${key}`);
+            const labels = { thumbnail: 'Logo/Poster', trailer: 'Archive Trailer', movie: 'Full Archive/M3U8' };
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] font-black uppercase text-zinc-500">${labels[key]}</span>
+                    <div class="flex bg-black p-1 rounded-full text-[8px] font-black border border-white/5">
+                        <button type="button" onclick="setAssetType('${key}', 'url')" id="${key}-url-btn" class="px-3 py-1 rounded-full bg-red-600 transition">URL</button>
+                        <button type="button" onclick="setAssetType('${key}', 'file')" id="${key}-file-btn" class="px-3 py-1 rounded-full transition">FILE</button>
+                    </div>
+                </div>
+                <div id="${key}-input-box">
+                    <input oninput="mediaCache['${key}'] = this.value" placeholder="Paste link here..." class="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 outline-none text-xs text-red-500 font-mono">
+                </div>
+            `;
+        }
+
+        function setAssetType(key, type) {
+            const box = document.getElementById(`${key}-input-box`);
+            document.getElementById(`${key}-url-btn`).className = `px-3 py-1 rounded-full ${type === 'url' ? 'bg-red-600' : ''}`;
+            document.getElementById(`${key}-file-btn`).className = `px-3 py-1 rounded-full ${type === 'file' ? 'bg-red-600' : ''}`;
+            
+            if (type === 'file') {
+                box.innerHTML = `<div class="relative"><input type="file" onchange="processFile('${key}', this)" class="w-full text-[10px] bg-black p-3 rounded-lg border border-zinc-800 cursor-pointer"><div id="${key}-status" class="hidden absolute right-3 top-3 text-green-500"><i data-lucide="check-circle" class="w-4 h-4"></i></div></div>`;
+                lucide.createIcons();
+            } else {
+                box.innerHTML = `<input oninput="mediaCache['${key}'] = this.value" placeholder="Paste link here..." class="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 outline-none text-xs text-red-500 font-mono">`;
+            }
+        }
+
+        function processFile(key, input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                mediaCache[key] = e.target.result; 
+                document.getElementById(`${key}-status`)?.classList.remove('hidden');
+                triggerToast(`${key.toUpperCase()} SYNCED`); 
+            };
+            reader.readAsDataURL(file);
+        }
+
+        document.getElementById('manifest-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const archive = {
+                title: document.getElementById('f-title').value,
+                type: document.getElementById('f-type').value,
+                rating: document.getElementById('f-rating').value,
+                category: document.getElementById('f-category').value || 'Uncategorized',
+                description: document.getElementById('f-desc').value,
+                thumbnail: mediaCache.thumbnail,
+                trailer: mediaCache.trailer,
+                movie: mediaCache.movie
+            };
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).add(archive);
+            tx.oncomplete = () => { 
+                closeManifest(); 
+                loadMovies(); 
+                triggerToast("MANIFEST COMMITTED TO VAULT"); 
+            };
+        };
+
+        // --- Pen Drive Sync (TXT Engine) ---
+        function exportVault() {
+            const content = JSON.stringify(movies);
+            const blob = new Blob([content], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `FreeTadka_Manifest_${new Date().getTime()}.txt`;
+            a.click();
+            triggerToast("VAULT EXPORTED TO PEN DRIVE");
+        }
+
+        function importVault(input) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    data.forEach(m => { delete m.id; store.add(m); });
+                    tx.oncomplete = () => { loadMovies(); triggerToast("PEN DRIVE SYNC COMPLETE"); };
+                } catch(err) {
+                    triggerToast("INVALID MANIFEST FILE");
+                }
+            };
+            reader.readAsText(input.files[0]);
+        }
+
+        // --- Nav & Modal Controls ---
+        function changeSection(sec) {
+            currentSection = sec;
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById(`nav-${sec}`).classList.add('active');
+            renderGrid();
+        }
+
+        function openDetail(m) {
+            const panel = document.getElementById('detail-info-panel');
+            const video = document.getElementById('detail-video-preview');
+            video.src = m.trailer || m.movie;
+            video.play();
+            
+            panel.innerHTML = `
+                <h2 class="text-4xl font-black mb-4 uppercase tracking-tighter">${m.title}</h2>
+                <div class="flex gap-3 mb-8">
+                    <span class="px-2 py-1 bg-red-600 rounded text-[10px] font-black">${m.rating}</span>
+                    <span class="px-2 py-1 bg-zinc-800 rounded text-[10px] font-black uppercase tracking-widest text-zinc-400">${m.type}</span>
+                    ${m.type === 'live' ? `<span class="px-2 py-1 bg-blue-900 rounded text-[10px] font-black uppercase tracking-widest text-white">${m.category}</span>` : ''}
+                </div>
+                <button onclick='startPlayer(${JSON.stringify(m).replace(/'/g, "&apos;")})' class="w-full bg-white text-black py-5 rounded-xl font-black uppercase text-lg mb-8 hover:scale-105 transition shadow-2xl">Play Content</button>
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-black text-red-600 uppercase tracking-widest">Metadata</h4>
+                    <p class="text-zinc-400 text-sm leading-relaxed border-l-2 border-zinc-800 pl-4 italic">"${m.description || 'No description provided for this archive entry.'}"</p>
+                </div>
+            `;
+            document.getElementById('detail-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeDetail() { document.getElementById('detail-modal').classList.add('hidden'); document.getElementById('detail-video-preview').pause(); }
+        function closeManifest() { document.getElementById('manifest-modal').classList.add('hidden'); }
+        function closePlayer() { document.getElementById('player-overlay').classList.add('hidden'); document.getElementById('main-video').pause(); }
+        function togglePlay() { const v = document.getElementById('main-video'); const icon = document.getElementById('play-icon'); if(v.paused) { v.play(); icon.setAttribute('data-lucide', 'pause'); } else { v.pause(); icon.setAttribute('data-lucide', 'play'); } lucide.createIcons(); }
+        function triggerToast(m) {
+            const t = document.createElement('div');
+            t.className = "fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-10 py-4 rounded-full font-black z-[5000] animate-bounce shadow-2xl border border-white/20";
+            t.innerText = m;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        function deleteMovie(id) {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).delete(id);
+            tx.oncomplete = loadMovies;
+        }
+
+        // --- Global Events ---
+        window.onkeydown = (e) => {
+            keyBuffer = (keyBuffer + e.key).slice(-6);
+            if (keyBuffer.toLowerCase() === "123abc") {
+                isOwner = true;
+                document.getElementById('owner-controls').classList.remove('hidden');
+                triggerToast("ADMIN ACCESS GRANTED");
+                renderGrid();
+            }
+        };
+
+        window.onload = async () => {
+            await initDB();
+            await loadMovies();
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('opacity-0');
+                setTimeout(() => { 
+                    document.getElementById('loader').classList.add('hidden'); 
+                    document.getElementById('app').classList.remove('hidden'); 
+                }, 1000);
+            }, 2000);
+            lucide.createIcons();
+        };
+
+        // Player Utilities
+        function videoJump(s) { document.getElementById('main-video').currentTime += s; }
+        function changeVolume(v) { document.getElementById('main-video').volume = v; }
+        function toggleFullscreen() { 
+            const video = document.getElementById('main-video');
+            if (video.requestFullscreen) video.requestFullscreen();
+            else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+        }
+        function seekVideo(e) {
+            const bar = document.getElementById('player-progress-container');
+            const video = document.getElementById('main-video');
+            const pos = (e.pageX - bar.offsetLeft) / bar.offsetWidth;
+            video.currentTime = pos * video.duration;
+        }
+    </script>
+</body>
+</html>

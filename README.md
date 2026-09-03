@@ -18,7 +18,7 @@
     <a href="https://youtube.com/@techspines?sub_confirmation=1" target="_blank" title="Subscribe to Tech Spine">
       <img src="https://img.shields.io/badge/🔴_SUBSCRIBE-TECH_SPINE-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube Subscribe" />
     </a>
-    <a href="https://github.com/sahibdeepme/hoster/issues/new?title=Feature+Request:" title="Submit Feature Idea">
+    <a href="https://raw.githubusercontent.com/SahibdeepMe/hoster/refs/heads/main/Lisences/IMG_9570.jpeg" title="Submit Feature Idea">
       <img src="https://img.shields.io/badge/💡_REQUEST-FEATURE-0ea5e9?style=for-the-badge&logo=lightbulb&logoColor=white" alt="Feature Request" />
     </a>
     <a href="https://github.com/sahibdeepme/Lisences/IMG_9570.jpeg" title="MIT License">

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Hosted Instance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+    }
+    #render-target {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      background-color: #ffffff;
+    }
+    #error-state {
+      display: none;
+      font-family: sans-serif;
+      padding: 40px;
+      color: #ef4444;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <iframe 
+    id="render-target" 
+    sandbox="allow-scripts allow-forms allow-modals allow-same-origin allow-popups allow-popups-to-escape-sandbox">
+  </iframe>
+
+  <div id="error-state">
+    <h3>Unable to render payload</h3>
+    <p>No valid Base64 fragment was passed in the URL.</p>
+  </div>
+
+  <script>
+    (function () {
+      const hash = window.location.hash.substring(1);
+      const frame = document.getElementById('render-target');
+      const errorBox = document.getElementById('error-state');
+
+      if (!hash) {
+        frame.style.display = 'none';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      try {
+        // Safe Unicode decoding
+        const decodedContent = decodeURIComponent(escape(atob(hash)));
+        
+        // Write content to sandbox
+        const doc = frame.contentWindow.document;
+        doc.open();
+        doc.write(decodedContent);
+        doc.close();
+      } catch (err) {
+        frame.style.display = 'none';
+        errorBox.style.display = 'block';
+        errorBox.innerHTML = `<h3>Decoding Error</h3><p>${err.message}</p>`;
+      }
+    })();
+  </script>
+</body>
+</html>

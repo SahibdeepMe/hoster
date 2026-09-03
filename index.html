@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CanvasDrop // Multi-Asset Host</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --accent: #4f46e5;
+      --accent-soft: #eef2ff;
+      --accent-hover: #4338ca;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    .container { width: 100%; max-width: 820px; }
+    header { margin-bottom: 24px; text-align: left; }
+
+    .badge {
+      display: inline-flex;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    h1 { font-size: 2rem; letter-spacing: -0.03em; margin-bottom: 6px; }
+    p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+      margin-bottom: 20px;
+    }
+
+    .form-group { margin-bottom: 18px; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      outline: none;
+      background: #fafafa;
+    }
+
+    input:focus { border-color: var(--accent); background: #fff; }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 36px 20px;
+      text-align: center;
+      background: #fafafa;
+      cursor: pointer;
+      margin-bottom: 18px;
+      transition: all 0.2s ease;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .btn-pick {
+      background: #fff;
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .btn-pick:hover { background: #f1f5f9; }
+
+    /* File List Manifest */
+    .file-manifest {
+      display: none;
+      margin-bottom: 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+      background: #fafafa;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .file-item:last-child { border-bottom: none; }
+    .file-size { color: var(--text-muted); }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .output-section {
+      display: none;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .url-bar { display: flex; gap: 8px; margin-top: 8px; }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0 18px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="badge">Full-Stack Static Host</div>
+      <h1>Canvas Web Deployer</h1>
+      <p class="subtitle">Deploy complete sites with HTML, CSS, JS, WebP, SVG, and fonts in one single URL directory.</p>
+    </header>
+
+    <div class="card">
+      <div class="form-group">
+        <label for="gh-token">GitHub Token (Saved Locally)</label>
+        <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+      </div>
+
+      <div class="form-group">
+        <label for="project-slug">Project Name / Subfolder Slug</label>
+        <input type="text" id="project-slug" placeholder="e.g. streaming-app or store">
+      </div>
+
+      <input type="file" id="folder-input" webkitdirectory directory multiple style="display:none;">
+      <input type="file" id="multi-file-input" multiple style="display:none;">
+
+      <div class="dropzone" id="drop-zone">
+        <strong>Drag and drop your project folder or files here</strong>
+        <div class="file-actions">
+          <button type="button" class="btn-pick" id="btn-select-folder">Select Entire Folder</button>
+          <button type="button" class="btn-pick" id="btn-select-files">Select Multiple Files</button>
+        </div>
+      </div>
+
+      <div class="file-manifest" id="file-manifest"></div>
+
+      <button id="publish-btn" class="btn" disabled>Deploy Complete Site</button>
+
+      <div class="output-section" id="output-section">
+        <label for="output-url">Hosted Project Live URL</label>
+        <div class="url-bar">
+          <input type="text" id="output-url" readonly>
+          <button class="btn-secondary" id="copy-btn">Copy</button>
+          <button class="btn-secondary" id="open-btn">Open</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

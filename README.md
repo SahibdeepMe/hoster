@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://sahibdeepme.github.io/hoster/" target="_blank">
-    <img src="https://img.shields.io/badge/⚡_LAUNCH_DASHBOARD-sahibdeepme.github.io%2Fhodter-6366f1?style=for-the-badge&logoColor=white" alt="Launch Dashboard" height="42" />
+    <img src="https://img.shields.io/badge/⚡_LAUNCH_DASHBOARD-sahibdeepme.github.io%2Fhoster-6366f1?style=for-the-badge&logoColor=white" alt="Launch Dashboard" height="42" />
   </a>
 </p>
 

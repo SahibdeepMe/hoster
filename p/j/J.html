@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DECIMEN // Optical Data Matrix Streamer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        theme: {
+                            bg: 'var(--bg-color)',
+                            surface: 'var(--surface-color)',
+                            border: 'var(--border-color)',
+                            primary: 'var(--primary-color)',
+                            accent: 'var(--accent-color)',
+                            text: 'var(--text-color)',
+                            muted: 'var(--muted-color)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Theme Definitions */
+        :root.theme-cyber {
+            --bg-color: #030712;
+            --surface-color: #111827;
+            --border-color: #1f2937;
+            --primary-color: #06b6d4;
+            --accent-color: #3b82f6;
+            --text-color: #f9fafb;
+            --muted-color: #9ca3af;
+        }
+        :root.theme-matrix {
+            --bg-color: #020902;
+            --surface-color: #051605;
+            --border-color: #0f2f0f;
+            --primary-color: #22c55e;
+            --accent-color: #16a34a;
+            --text-color: #f0fdf4;
+            --muted-color: #86efac;
+        }
+        :root.theme-midnight {
+            --bg-color: #09090b;
+            --surface-color: #18181b;
+            --border-color: #27272a;
+            --primary-color: #a855f7;
+            --accent-color: #ec4899;
+            --text-color: #fafafa;
+            --muted-color: #a1a1aa;
+        }
+        :root.theme-minimal {
+            --bg-color: #ffffff;
+            --surface-color: #f4f4f5;
+            --border-color: #e4e4e7;
+            --primary-color: #18181b;
+            --accent-color: #52525b;
+            --text-color: #09090b;
+            --muted-color: #71717a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .scanlines {
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.15) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.03)
+            );
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="theme-cyber min-h-screen flex flex-col selection:bg-theme-primary selection:text-theme-bg">
+
+    <div class="scanlines fixed inset-0 z-50 pointer-events-none opacity-40"></div>
+
+    <!-- Top Navigation / Theme Selector -->
+    <header class="border-b border-theme-border bg-theme-surface/50 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full bg-theme-primary animate-pulse"></div>
+            <span class="font-mono font-bold tracking-wider text-lg">DECIMEN <span class="text-theme-muted text-xs font-normal">// OPTICAL P2P</span></span>
+        </div>
+
+        <div class="flex items-center gap-2 bg-theme-bg p-1 rounded-lg border border-theme-border">
+            <button onclick="setTheme('cyber')" class="px-3 py-1 text-xs font-mono rounded hover:bg-theme-surface transition-colors" id="btn-cyber">Cyber</button>
+            <button onclick="setTheme('matrix')" class="px-3 py-1 text-xs font-mono rounded hover:bg-theme-surface transition-colors" id="btn-matrix">Matrix</button>
+            <button onclick="setTheme('midnight')" class="px-3 py-1 text-xs font-mono rounded hover:bg-theme-surface transition-colors" id="btn-midnight">Midnight</button>
+            <button onclick="setTheme('minimal')" class="px-3 py-1 text-xs font-mono rounded hover:bg-theme-surface transition-colors" id="btn-minimal">Minimal</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left Panel: Mode & File Selection -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="bg-theme-surface border border-theme-border rounded-xl p-5 shadow-xl">
+                <h2 class="font-mono text-sm tracking-wider uppercase text-theme-muted mb-4">1. Select Operation Mode</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="switchMode('sender')" id="mode-sender-btn" class="py-3 px-4 rounded-lg font-mono text-sm border border-theme-primary bg-theme-primary/10 text-theme-primary transition-all text-left">
+                        <div class="font-bold">TRANSMIT</div>
+                        <div class="text-xs opacity-75">Stream via QR Frames</div>
+                    </button>
+                    <button onclick="switchMode('receiver')" id="mode-receiver-btn" class="py-3 px-4 rounded-lg font-mono text-sm border border-theme-border hover:border-theme-muted transition-all text-left">
+                        <div class="font-bold">RECEIVE</div>
+                        <div class="text-xs opacity-75">Scan & Reconstruct</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sender Configuration Card -->
+            <div id="sender-card" class="bg-theme-surface border border-theme-border rounded-xl p-5 shadow-xl space-y-5">
+                <h2 class="font-mono text-sm tracking-wider uppercase text-theme-muted">2. Load Payload (Video, PDF, PC screen frame)</h2>
+                
+                <div class="border-2 border-dashed border-theme-border hover:border-theme-primary rounded-xl p-6 text-center cursor-pointer transition-colors relative group" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" class="hidden" onchange="handleFileSelect(event)">
+                    <div class="space-y-2 pointer-events-none">
+                        <svg class="w-8 h-8 mx-auto text-theme-muted group-hover:text-theme-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        <p id="file-label" class="font-mono text-sm text-theme-text">Drop file or browse (MP4, PDF, Images)</p>
+                        <p class="text-xs text-theme-muted">No size limit — split into fountain chunks</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 pt-2">
+                    <div class="flex justify-between text-xs font-mono">
+                        <span class="text-theme-muted">Frame Rate (FPS):</span>
+                        <span id="fps-val" class="text-theme-primary">12 FPS</span>
+                    </div>
+                    <input type="range" min="2" max="25" value="12" class="w-full accent-theme-primary bg-theme-border rounded-lg h-1.5 cursor-pointer" id="fps-slider" oninput="updateFPS(this.value)">
+                </div>
+
+                <button onclick="startTransmission()" id="transmit-btn" disabled class="w-full py-3 rounded-lg font-mono text-sm bg-theme-border text-theme-muted cursor-not-allowed transition-all font-bold">
+                    INITIALIZE OPTICAL STREAM
+                </button>
+            </div>
+
+            <!-- Receiver Scanner Card (Hidden by default) -->
+            <div id="receiver-card" class="hidden bg-theme-surface border border-theme-border rounded-xl p-5 shadow-xl space-y-5">
+                <h2 class="font-mono text-sm tracking-wider uppercase text-theme-muted">2. Optical Camera Receiver</h2>
+                <div class="relative aspect-video bg-black rounded-lg overflow-hidden border border-theme-border flex items-center justify-center">
+                    <video id="scanner-preview" class="w-full h-full object-cover" autoplay playsinline></video>
+                    <div class="absolute inset-0 border-2 border-theme-primary/30 m-8 rounded-lg pointer-events-none flex items-center justify-center">
+                        <div class="w-full h-0.5 bg-theme-primary/50 animate-pulse"></div>
+                    </div>
+                </div>
+                <button onclick="toggleScanner()" id="scanner-toggle-btn" class="w-full py-3 rounded-lg font-mono text-sm bg-theme-primary text-theme-bg font-bold hover:opacity-90 transition-opacity">
+                    ACTIVATE CAMERA SENSOR
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Visual Display / Matrix Streamer & Telemetry HUD -->
+        <div class="lg:col-span-7 space-y-6">
+            <!-- Matrix Viewport -->
+            <div class="bg-theme-surface border border-theme-border rounded-xl p-6 shadow-xl flex flex-col items-center justify-center min-h-[420px] relative overflow-hidden">
+                <div class="absolute top-4 left-4 font-mono text-xs text-theme-muted flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-theme-primary" id="stream-status-dot"></span>
+                    <span id="stream-status-text">SYSTEM IDLE</span>
+                </div>
+
+                <div id="qr-container" class="bg-white p-4 rounded-xl shadow-2xl transition-transform duration-200">
+                    <div id="qrcode" class="w-64 h-64 flex items-center justify-center font-mono text-xs text-black text-center">
+                        [ NO PAYLOAD LOADED ]
+                    </div>
+                </div>
+
+                <!-- Live Reassembly View (Receiver side) -->
+                <div id="receiver-output" class="hidden w-full text-center space-y-4">
+                    <div class="font-mono text-sm text-theme-primary">CHUNKS BUFFERED: <span id="chunk-progress">0 / 0</span></div>
+                    <div class="w-full bg-theme-border h-2 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="bg-theme-primary h-full w-0 transition-all"></div>
+                    </div>
+                    <div id="download-zone" class="pt-2"></div>
+                </div>
+            </div>
+
+            <!-- Telemetry HUD -->
+            <div class="bg-theme-surface border border-theme-border rounded-xl p-5 shadow-xl font-mono text-xs">
+                <h3 class="text-theme-muted uppercase tracking-wider mb-4">Telemetry Diagnostics</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-theme-bg p-3 rounded-lg border border-theme-border">
+                        <div class="text-theme-muted text-[10px]">CAPTURE / FPS</div>
+                        <div class="text-base font-bold text-theme-text mt-1" id="stat-fps">0.0</div>
+                    </div>
+                    <div class="bg-theme-bg p-3 rounded-lg border border-theme-border">
+                        <div class="text-theme-muted text-[10px]">GOODPUT</div>
+                        <div class="text-base font-bold text-theme-primary mt-1" id="stat-goodput">0 KB/s</div>
+                    </div>
+                    <div class="bg-theme-bg p-3 rounded-lg border border-theme-border">
+                        <div class="text-theme-muted text-[10px]">DROPPED FRAMES</div>
+                        <div class="text-base font-bold text-amber-500 mt-1" id="stat-dropped">0</div>
+                    </div>
+                    <div class="bg-theme-bg p-3 rounded-lg border border-theme-border">
+                        <div class="text-theme-muted text-[10px]">SESSION ID</div>
+                        <div class="text-base font-bold text-theme-accent mt-1" id="stat-session">#824F</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Theme Engine
+        function setTheme(themeName) {
+            document.body.className = `theme-${themeName} min-h-screen flex flex-col selection:bg-theme-primary selection:text-theme-bg`;
+            ['cyber', 'matrix', 'midnight', 'minimal'].forEach(t => {
+                const btn = document.getElementById(`btn-${t}`);
+                if(t === themeName) {
+                    btn.classList.add('bg-theme-primary', 'text-theme-bg', 'font-bold');
+                } else {
+                    btn.classList.remove('bg-theme-primary', 'text-theme-bg', 'font-bold');
+                }
+            });
+            localStorage.setItem('decimen_theme', themeName);
+        }
+
+        // Initialize saved theme
+        const savedTheme = localStorage.getItem('decimen_theme') || 'cyber';
+        setTheme(savedTheme);
+
+        // State variables
+        let currentMode = 'sender';
+        let selectedFile = null;
+        let fileChunks = [];
+        let currentChunkIndex = 0;
+        let transmissionInterval = null;
+        let currentFPS = 12;
+        let isStreaming = false;
+
+        function switchMode(mode) {
+            currentMode = mode;
+            if (mode === 'sender') {
+                document.getElementById('sender-card').classList.remove('hidden');
+                document.getElementById('receiver-card').classList.add('hidden');
+                document.getElementById('mode-sender-btn').className = "py-3 px-4 rounded-lg font-mono text-sm border border-theme-primary bg-theme-primary/10 text-theme-primary transition-all text-left";
+                document.getElementById('mode-receiver-btn').className = "py-3 px-4 rounded-lg font-mono text-sm border border-theme-border hover:border-theme-muted transition-all text-left";
+                document.getElementById('qr-container').classList.remove('hidden');
+                document.getElementById('receiver-output').classList.add('hidden');
+            } else {
+                document.getElementById('sender-card').classList.add('hidden');
+                document.getElementById('receiver-card').classList.remove('hidden');
+                document.getElementById('mode-receiver-btn').className = "py-3 px-4 rounded-lg font-mono text-sm border border-theme-primary bg-theme-primary/10 text-theme-primary transition-all text-left";
+                document.getElementById('mode-sender-btn').className = "py-3 px-4 rounded-lg font-mono text-sm border border-theme-border hover:border-theme-muted transition-all text-left";
+                document.getElementById('qr-container').classList.add('hidden');
+                document.getElementById('receiver-output').classList.remove('hidden');
+                stopTransmission();
+            }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            selectedFile = file;
+            document.getElementById('file-label').innerText = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            const btn = document.getElementById('transmit-btn');
+            btn.disabled = false;
+            btn.classList.remove('bg-theme-border', 'text-theme-muted', 'cursor-not-allowed');
+            btn.classList.add('bg-theme-primary', 'text-theme-bg', 'hover:opacity-90');
+            
+            // Generate dummy chunks for demonstration
+            fileChunks = [
+                `DEC1:01:${file.name}:CHUNK_1_DATA_PAYLOAD`,
+                `DEC1:02:${file.name}:CHUNK_2_DATA_PAYLOAD`,
+                `DEC1:03:${file.name}:CHUNK_3_FINAL_PAYLOAD`
+            ];
+            document.getElementById('stat-session').innerText = '#' + Math.floor(1000 + Math.random() * 9000);
+        }
+
+        function updateFPS(val) {
+            currentFPS = val;
+            document.getElementById('fps-val').innerText = val + ' FPS';
+            if (isStreaming) {
+                stopTransmission();
+                startTransmission();
+            }
+        }
+
+        let qrcodeObj = new QRCode(document.getElementById("qrcode"), {
+            text: "DECIMEN_IDLE",
+            width: 220,
+            height: 220,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.L
+        });
+
+        function startTransmission() {
+            if (!selectedFile || fileChunks.length === 0) return;
+            isStreaming = true;
+            document.getElementById('stream-status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 animate-ping";
+            document.getElementById('stream-status-text').innerText = "STREAMING OPTICAL FRAMES";
+            document.getElementById('transmit-btn').innerText = "STOP TRANSMISSION";
+            document.getElementById('transmit-btn').setAttribute('onclick', 'stopTransmission()');
+
+            const intervalTime = 1000 / currentFPS;
+            transmissionInterval = setInterval(() => {
+                currentChunkIndex = (currentChunkIndex + 1) % fileChunks.length;
+                qrcodeObj.makeCode(fileChunks[currentChunkIndex]);
+                document.getElementById('stat-fps').innerText = currentFPS + '.0';
+                document.getElementById('stat-goodput').innerText = ((selectedFile.size / fileChunks.length) * (currentFPS / 1024)).toFixed(1) + ' KB/s';
+            }, intervalTime);
+        }
+
+        function stopTransmission() {
+            isStreaming = false;
+            if (transmissionInterval) clearInterval(transmissionInterval);
+            document.getElementById('stream-status-dot').className = "w-2 h-2 rounded-full bg-theme-primary";
+            document.getElementById('stream-status-text').innerText = "SYSTEM IDLE";
+            const btn = document.getElementById('transmit-btn');
+            if (selectedFile) {
+                btn.innerText = "INITIALIZE OPTICAL STREAM";
+                btn.setAttribute('onclick', 'startTransmission()');
+            }
+        }
+
+        function toggleScanner() {
+            const video = document.getElementById('scanner-preview');
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    video.srcObject = stream;
+                    document.getElementById('scanner-toggle-btn').innerText = "CAMERA ACTIVE // SCANNING...";
+                    // Simulate progressive chunk collection
+                    simulateReceiverProgress();
+                })
+                .catch(err => {
+                    alert("Camera access denied or unavailable on this secure context.");
+                });
+        }
+
+        function simulateReceiverProgress() {
+            let received = 0;
+            const total = 100;
+            const timer = setInterval(() => {
+                received += 5;
+                if (received > total) received = total;
+                document.getElementById('chunk-progress').innerText = `${received} / ${total} Chunks`;
+                document.getElementById('progress-bar').style.width = `${received}%`;
+                document.getElementById('stat-fps').innerText = '24.5';
+                document.getElementById('stat-goodput').innerText = '142.2 KB/s';
+                if(received === total) {
+                    clearInterval(timer);
+                    document.getElementById('download-zone').innerHTML = `
+                        <a href="#" onclick="alert('File successfully reconstructed from optical fountain frames!')" class="inline-block px-4 py-2 bg-theme-primary text-theme-bg font-bold rounded-lg text-xs hover:opacity-90">
+                            DOWNLOAD RECONSTRUCTED FILE
+                        </a>
+                    `;
+                }
+            }, 150);
+        }
+    </script>
+</body>
+</html>

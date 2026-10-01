@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Camera Photo Editor</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 700px;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    video, img {
+      max-width: 100%;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      margin-top: 10px;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    label, button {
+      display: inline-block;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 8px;
+      transition: transform 0.2s;
+    }
+    label:hover, button:hover {
+      transform: scale(1.05);
+    }
+    #colorOptions {
+      margin-top: 15px;
+      display: none;
+    }
+    .color-picker {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Smart Camera Photo Editor</h1>
+
+    <!-- Camera Section -->
+    <video id="camera" autoplay playsinline></video><br>
+    <button id="captureBtn">📸 Take Picture</button>
+
+    <!-- Upload Section -->
+    <input type="file" id="fileInput" accept="image/*" />
+    <label for="fileInput">📂 Upload Picture</label>
+
+    <!-- Feature Buttons -->
+    <div>
+      <button id="removeBgBtn">✨ Remove Background</button>
+      <button id="addBgColorBtn">🎨 Add Background Color</button>
+      <button id="enhanceBtn">🚀 Enhance Picture</button>
+    </div>
+
+    <!-- Color Picker -->
+    <div id="colorOptions" class="color-picker">
+      <p>Choose Background:</p>
+      <input type="color" id="colorPicker" value="#00aaff" />
+      <button onclick="applyBackground()">Apply</button>
+    </div>
+
+    <!-- Preview -->
+    <img id="preview" src="" alt="Preview will appear here" />
+  </div>
+
+  <script>
+    const API_KEY = "A2vDMLEBo4SiDnfsCiJXw9q9";
+    const camera = document.getElementById("camera");
+    const captureBtn = document.getElementById("captureBtn");
+    const fileInput = document.getElementById("fileInput");
+    const preview = document.getElementById("preview");
+    const removeBgBtn = document.getElementById("removeBgBtn");
+    const addBgColorBtn = document.getElementById("addBgColorBtn");
+    const enhanceBtn = document.getElementById("enhanceBtn");
+    const colorOptions = document.getElementById("colorOptions");
+    const colorPicker = document.getElementById("colorPicker");
+
+    let capturedImage = null;
+    let bgRemovedImage = null;
+
+    // Start camera
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        camera.srcObject = stream;
+      } catch (err) {
+        alert("Camera not accessible: " + err.message);
+      }
+    }
+    startCamera();
+
+    // Capture image from video
+    captureBtn.addEventListener("click", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = camera.videoWidth;
+      canvas.height = camera.videoHeight;
+      canvas.getContext("2d").drawImage(camera, 0, 0);
+      capturedImage = canvas.toDataURL("image/png");
+      preview.src = capturedImage;
+    });
+
+    // Upload file
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          capturedImage = e.target.result;
+          preview.src = capturedImage;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    async function callApi(base64, type) {
+      const blob = await (await fetch(base64)).blob();
+      const formData = new FormData();
+      formData.append("image_file", blob);
+      if (type === "enhance") formData.append("function", "enhancement");
+
+      const res = await fetch("https://api.remove.bg/v1.0/removebg", {
+        method: "POST",
+        headers: { "X-Api-Key": API_KEY },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        alert("API Error: " + res.statusText);
+        return null;
+      }
+
+      const apiBlob = await res.blob();
+      return URL.createObjectURL(apiBlob);
+    }
+
+    removeBgBtn.addEventListener("click", async () => {
+      if (!capturedImage) return alert("Take or upload a picture first!");
+      preview.src = "loading.gif";
+      bgRemovedImage = await callApi(capturedImage, "remove");
+      if (bgRemovedImage) preview.src = bgRemovedImage;
+    });
+
+    addBgColorBtn.addEventListener("click", async () => {
+      if (!capturedImage) return alert("Take or upload a picture first!");
+      if (!bgRemovedImage) {
+        bgRemovedImage = await callApi(capturedImage, "remove");
+      }
+      preview.src = bgRemovedImage;
+      colorOptions.style.display = "block";
+    });
+
+    function applyBackground() {
+      if (!bgRemovedImage) return alert("Remove background first!");
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+      img.src = bgRemovedImage;
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.fillStyle = colorPicker.value;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        preview.src = canvas.toDataURL("image/png");
+      };
+    }
+
+    enhanceBtn.addEventListener("click", async () => {
+      if (!capturedImage) return alert("Take or upload a picture first!");
+      preview.src = "loading.gif";
+      const enhanced = await callApi(capturedImage, "enhance");
+      if (enhanced) preview.src = enhanced;
+    });
+  </script>
+</body>
+</html>

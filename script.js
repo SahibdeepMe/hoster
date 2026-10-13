@@ -1,13 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Dynamically resolve username and repo name from the GitHub Pages URL
-  const hostnameParts = window.location.hostname.split('.');
-  const pathSegments = window.location.pathname.split('/').filter(Boolean);
-
-  const GITHUB_USERNAME = hostnameParts[0] || 'SahibdeepMe';
-  const REPO_NAME = pathSegments[0] || 'hoster';
-  const BRANCH = 'main'; // Change to 'master' if your default branch is master
-
   const tokenInput = document.getElementById('gh-token');
+  const repoInput = document.getElementById('gh-repo');
   const slugInput = document.getElementById('project-slug');
   const dropZone = document.getElementById('drop-zone');
   const folderInput = document.getElementById('folder-input');
@@ -23,13 +16,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let selectedFiles = [];
 
-  // Restore saved token from local storage
-  const savedToken = localStorage.getItem('hoster_gh_token') || localStorage.getItem('canvas_gh_token');
-  if (savedToken && tokenInput) {
-    tokenInput.value = savedToken;
-  }
+  // Restore saved credentials from localStorage
+  const savedToken = localStorage.getItem('hoster_gh_token');
+  const savedRepo = localStorage.getItem('hoster_gh_repo');
+  if (savedToken && tokenInput) tokenInput.value = savedToken;
+  if (savedRepo && repoInput) repoInput.value = savedRepo;
 
-  // File picker trigger handlers
+  // File Picker Trigger Handlers
   if (btnSelectFolder && folderInput) {
     btnSelectFolder.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -47,7 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (dropZone && multiFileInput) {
     dropZone.addEventListener('click', () => multiFileInput.click());
 
-    // Drag and drop events
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       dropZone.classList.add('dragover');
@@ -89,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fileManifest.appendChild(row);
     });
 
-    // Automatically create a slug based on directory name or first file name
+    // Auto-generate project slug if empty
     if (!slugInput.value.trim()) {
       const firstPath = selectedFiles[0].webkitRelativePath || selectedFiles[0].name;
       const rootFolderName = firstPath.includes('/')
@@ -101,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     publishBtn.disabled = false;
   }
 
-  // Convert File blob to Base64 String
+  // Convert File blob to Base64
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -114,10 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Deploy process using GitHub Git Data Trees API
+  // Deployment Flow
   if (publishBtn) {
     publishBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
+      const rawRepo = repoInput.value.trim();
       const rawSlug = slugInput.value.trim();
 
       if (!token) {
@@ -126,8 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      if (!rawRepo) {
+        alert('Please enter the target repository name.');
+        repoInput.focus();
+        return;
+      }
+
       if (!rawSlug) {
-        alert('Please provide a project name.');
+        alert('Please enter a project slug/name.');
         slugInput.focus();
         return;
       }
@@ -137,11 +136,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const repoName = rawRepo.replace(/\.git$/i, '').trim();
       const slug = rawSlug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+
+      // Cache settings locally
       localStorage.setItem('hoster_gh_token', token);
+      localStorage.setItem('hoster_gh_repo', repoName);
 
       publishBtn.disabled = true;
-      publishBtn.textContent = 'Connecting to repository...';
+      publishBtn.textContent = 'Verifying token & user...';
 
       const headers = {
         'Authorization': `Bearer ${token}`,
@@ -150,28 +153,46 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       try {
-        // Step 1: Retrieve latest commit SHA from the branch
-        const refRes = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/git/ref/heads/${BRANCH}`, { headers });
+        // Step 1: Resolve authenticated username
+        const userRes = await fetch('https://api.github.com/user', { headers });
+        if (!userRes.ok) {
+          throw new Error('Invalid token. Please check that your token has "repo" scope enabled.');
+        }
+        const userData = await userRes.json();
+        const username = userData.login;
+
+        // Step 2: Check target repository & branch
+        publishBtn.textContent = `Connecting to ${username}/${repoName}...`;
+        const repoRes = await fetch(`https://api.github.com/repos/${username}/${repoName}`, { headers });
+        if (repoRes.status === 404) {
+          throw new Error(`Repository "${repoName}" not found under user "${username}". Please create it on GitHub first.`);
+        }
+        if (!repoRes.ok) {
+          throw new Error(`Failed to access repository: ${repoRes.statusText}`);
+        }
+        const repoData = await repoRes.json();
+        const defaultBranch = repoData.default_branch || 'main';
+
+        const refRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/git/ref/heads/${defaultBranch}`, { headers });
         if (!refRes.ok) {
-          throw new Error(`Could not access repository ${REPO_NAME}. Ensure token has 'repo' scope.`);
+          throw new Error(`Could not locate branch "${defaultBranch}". Make sure the repo has an initial commit (e.g., a README).`);
         }
         const refData = await refRes.json();
         const latestCommitSha = refData.object.sha;
 
-        // Step 2: Upload each file as an isolated Git Blob
-        publishBtn.textContent = `Uploading ${selectedFiles.length} assets...`;
+        // Step 3: Upload files as Blobs
+        publishBtn.textContent = `Uploading ${selectedFiles.length} file(s)...`;
         const treeItems = [];
 
         for (const file of selectedFiles) {
           let cleanPath = file.webkitRelativePath || file.name;
-          // Strip outer parent directory when using folder selector so relative assets align
           if (cleanPath.includes('/')) {
             cleanPath = cleanPath.substring(cleanPath.indexOf('/') + 1);
           }
 
           const b64 = await fileToBase64(file);
 
-          const blobRes = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/git/blobs`, {
+          const blobRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/git/blobs`, {
             method: 'POST',
             headers,
             body: JSON.stringify({ content: b64, encoding: 'base64' })
@@ -190,9 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
 
-        // Step 3: Construct the Git Tree containing all assets
+        // Step 4: Assemble Tree
         publishBtn.textContent = 'Assembling file tree...';
-        const treeRes = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/git/trees`, {
+        const treeRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/git/trees`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -206,13 +227,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const treeData = await treeRes.json();
 
-        // Step 4: Create commit pointing to the new tree
-        publishBtn.textContent = 'Creating commit...';
-        const commitRes = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/git/commits`, {
+        // Step 5: Create Commit
+        publishBtn.textContent = 'Committing changes...';
+        const commitRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/git/commits`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            message: `Deploy full bundle for ${slug} via Hoster`,
+            message: `Deploy bundle for ${slug} via Hoster`,
             tree: treeData.sha,
             parents: [latestCommitSha]
           })
@@ -223,24 +244,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const commitData = await commitRes.json();
 
-        // Step 5: Update the branch pointer to the new commit
-        const patchRes = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/git/refs/heads/${BRANCH}`, {
+        // Step 6: Update Branch Reference
+        publishBtn.textContent = 'Updating repository branch...';
+        const patchRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/git/refs/heads/${defaultBranch}`, {
           method: 'PATCH',
           headers,
           body: JSON.stringify({ sha: commitData.sha })
         });
 
         if (!patchRes.ok) {
-          throw new Error('Failed to update branch reference.');
+          throw new Error('Failed to update branch pointer.');
         }
 
-        // Final URL pointing directly to hoster/p/<slug>/
-        const finalUrl = `https://${GITHUB_USERNAME}.github.io/${REPO_NAME}/p/${slug}/`;
+        // Step 7: Auto-enable GitHub Pages if not already active
+        publishBtn.textContent = 'Checking GitHub Pages status...';
+        try {
+          const pagesCheck = await fetch(`https://api.github.com/repos/${username}/${repoName}/pages`, { headers });
+          if (pagesCheck.status === 404) {
+            publishBtn.textContent = 'Enabling GitHub Pages automatically...';
+            await fetch(`https://api.github.com/repos/${username}/${repoName}/pages`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                source: {
+                  branch: defaultBranch,
+                  path: '/'
+                }
+              })
+            });
+          }
+        } catch (pagesErr) {
+          console.warn('Could not auto-enable GitHub Pages:', pagesErr);
+        }
+
+        // Final URL Output
+        const finalUrl = `https://${username}.github.io/${repoName}/p/${slug}/`;
         outputUrl.value = finalUrl;
         outputSection.style.display = 'block';
 
       } catch (err) {
-        alert('Deployment error: ' + err.message);
+        alert('Deployment Error: ' + err.message);
       } finally {
         publishBtn.disabled = false;
         publishBtn.textContent = 'Deploy Complete Site';
@@ -248,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Copy URL button
+  // Copy button
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
       if (!outputUrl.value) return;
@@ -259,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Open URL button
+  // Open button
   if (openBtn) {
     openBtn.addEventListener('click', () => {
       if (outputUrl.value) {
